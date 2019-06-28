@@ -1,5 +1,11 @@
 """
-Get RSS feeds from BBC news website
+Cluster news articles based on collected data
+=============================================
+
+- Get RSS feeds from the Guardian
+- Use doc2vec to numerically represent the articles
+- Use t-SNE to reduce the dimension of the document vectors and to plot clusters of similar articles
+- Cluster similar articles together based on the doc2vec vectors
 
 Requirements
 :requires: feedparser
@@ -10,6 +16,7 @@ Requirements
 :requires: numpy
 :requires: sklearn
 :requires: pandas
+:requires: seaborn
 
 """
 
@@ -17,13 +24,21 @@ Requirements
 import feedparser
 import re
 from string import punctuation
+
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 #from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 import numpy as np
+
+from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans
 import pandas as pd
+import seaborn as sns
+
+"""
+GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
+"""
 
 def get_rss_feed(url):
     """
@@ -39,7 +54,7 @@ def get_rss_feed(url):
 guardian_feed = 'http://www.theguardian.com/uk/rss'
 d = get_rss_feed(guardian_feed)
 
-# Combine headlines and descriptions into one string
+# Headlines
 headlines = []
 for i in d['entries']:
     headlines.append(i['summary'])
@@ -71,7 +86,7 @@ def clean_rss_feed(text):
 headlines = clean_rss_feed(headlines)
 feeds_no_html = clean_rss_feed(summaries)
 
-def removeNonAscii(text):
+def remove_non_ascii(text):
     """
     Function to remove non-ascii characters
     :param text: A list of strings which may contain non-ascii characters
@@ -83,14 +98,29 @@ def removeNonAscii(text):
     rtext = [i.decode("utf-8") for i in text]
     return rtext
 
-feeds_no_html = removeNonAscii(feeds_no_html)
+headlines = remove_non_ascii(headlines)
+feeds_no_html = remove_non_ascii(feeds_no_html)
 
-# Save list of strings to a text file
-with open('guardian_rss.txt', 'w') as f:
-    for item in feeds_no_html:
-        f.write("%s\n" % item)
+def save_to_txt(my_list, name_of_file):
+    """
+    Function to save a list to a text file
+    :param my_list: List to save to file
+    :type my_list: list
+    :param name_of_file: Name of file
+    :type name_of_file: str
+    """
+    with open(name_of_file, 'w') as f:
+        for item in my_list:
+            f.write("%s\n" % item)
 
-# Read in saved list of strings
+save_to_txt(headlines, 'guardian_headlines_rss.txt')
+save_to_txt(feeds_no_html, 'guardian_rss.txt')
+
+"""
+TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
+"""
+
+# Read feeds from text file
 with open('guardian_rss.txt', 'r') as f:
     feeds_no_html = f.readlines()
 
@@ -109,7 +139,6 @@ def remove_punct_lower_case(text):
 
 word_tokens = [word_tokenize(sentence) for sentence in feeds_no_html]
 
-
 def remove_stopwords(my_string):
     """
     Function to remove stop words from a string
@@ -126,17 +155,41 @@ word_tokens = [remove_stopwords(i) for i in word_tokens]
 
 # Create TaggedDocument required as input for Doc2vec and run model
 documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(word_tokens)]
-model = Doc2Vec(documents, vector_size=5, window=2, min_count=1, workers=4)
+model = Doc2Vec(documents, vector_size=10, window=2, min_count=2, workers=4)
 
 # Can see individual vectors
 print(model.docvecs[1])
 
 doc_vectors = np.array(model.docvecs.vectors_docs)
 
-# Run Kmeans clustering
+"""
+DIMENSION REDUCTION USING T-SNE
+"""
 
-km_model = KMeans(n_clusters=10, init='k-means++', max_iter=100, n_init=1)
-km_model.fit(doc_vectors)
+tsne_on_docvecs = TSNE(n_components=2).fit_transform(doc_vectors)
+
+# Plot t-SNE output
+tsne_plot_data = pd.DataFrame({'x':tsne_on_docvecs[:,0],
+                               'y':tsne_on_docvecs[:,1]})
+sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
+
+"""
+CLUSTER THE ARTICLES USING K-MEANS
+"""
+
+# Run Kmeans clustering with different cluster sizes
+sum_of_squared_distances = []
+for i in range(1,16):
+    km_model = KMeans(n_clusters=i, init='k-means++', max_iter=100, n_init=1)
+    km_model.fit(doc_vectors)
+    sum_of_squared_distances.append(km_model.inertia_)
+
+# Create elbow plot to decide optimal number of clusters
+elbow_plot_input = pd.DataFrame(
+    {'clusters': list(range(1,16)),
+     'sum_of_squared_distances': sum_of_squared_distances
+    })
+sns.lineplot(x="clusters", y="sum_of_squared_distances", data=elbow_plot_input)
 
 # Kmeans labels
 labels = km_model.labels_.tolist()
