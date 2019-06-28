@@ -65,8 +65,6 @@ for i in d['entries']:
     temp = i['title'] + " " + i['summary']
     summaries.append(temp)
 
-# Summaries data looks messy as it contains html tags
-# p, a, li tags, ul, em, strong, span
 def clean_rss_feed(text):
     """
     Function to remove a handful of known html tags (p,
