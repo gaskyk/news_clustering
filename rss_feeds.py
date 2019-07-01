@@ -32,6 +32,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 import numpy as np
 
 from sklearn.manifold import TSNE
+from sklearn.neighbors import KDTree
 from sklearn.cluster import KMeans
 import pandas as pd
 import seaborn as sns
@@ -107,7 +108,7 @@ def save_to_txt(my_list, name_of_file):
     :param name_of_file: Name of file
     :type name_of_file: str
     """
-    with open(name_of_file, 'w') as f:
+    with open(name_of_file, 'a') as f:
         for item in my_list:
             f.write("%s\n" % item)
 
@@ -118,9 +119,11 @@ save_to_txt(feeds_no_html, 'guardian_rss.txt')
 TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
 """
 
-# Read feeds from text file
+# Read feeds and headlines from text file
 with open('guardian_rss.txt', 'r') as f:
-    feeds_no_html = f.readlines()
+    feeds = f.readlines()
+with open('guardian_headlines_rss.txt', 'r') as f:
+    headlines = f.readlines()
 
 def remove_punct_lower_case(text):
     """
@@ -135,7 +138,7 @@ def remove_punct_lower_case(text):
     cleaned_text = [i.lower() for i in text_no_punct]
     return cleaned_text
 
-word_tokens = [word_tokenize(sentence) for sentence in feeds_no_html]
+word_tokens = [word_tokenize(sentence) for sentence in feeds]
 
 def remove_stopwords(my_string):
     """
@@ -166,9 +169,24 @@ DIMENSION REDUCTION USING T-SNE
 
 tsne_on_docvecs = TSNE(n_components=2).fit_transform(doc_vectors)
 
-# Plot t-SNE output
-tsne_plot_data = pd.DataFrame({'x':tsne_on_docvecs[:,0],
+# Find nearest neighbour headline
+tree = KDTree(tsne_on_docvecs)
+nearest_dist, nearest_ind = tree.query(tsne_on_docvecs, k=2)  # k=2 nearest neighbors where k1 = identity
+nearest_dist = nearest_dist[:, 1].tolist()
+nearest_ind = nearest_ind[:, 1].tolist()
+
+nearest_headlines = []
+for i in nearest_ind:
+    nearest_headlines.append(headlines[i])
+
+# Summarise t-SNE output
+tsne_plot_data = pd.DataFrame({'headlines': headlines,
+                               'nearest_headlines': nearest_headlines,
+                               'nearest_distance': nearest_dist,
+                               'x':tsne_on_docvecs[:,0],
                                'y':tsne_on_docvecs[:,1]})
+
+# Plot t-SNE output
 sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
 """
