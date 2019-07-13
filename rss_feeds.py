@@ -8,8 +8,6 @@ Cluster news articles based on collected data
 - Cluster similar articles together based on the doc2vec vectors
 
 Requirements
-:requires: feedparser
-:requires: re
 :requires: string
 :requires: nltk
 :requires: gensim
@@ -21,8 +19,8 @@ Requirements
 """
 
 # Import packages
-import feedparser
-import re
+import collect_rss_feeds as collect
+
 from string import punctuation
 
 from nltk.tokenize import word_tokenize
@@ -41,79 +39,7 @@ import seaborn as sns
 GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
 """
 
-def get_rss_feed(url):
-    """
-    Function to get RSS feed from a chosen news service
-    :param url: URL of RSS news feed
-    :type url: str
-    :return: d
-    :rtype: feedparser.FeedParserDict
-    """
-    d = feedparser.parse(url)
-    return d
-
-guardian_feed = 'http://www.theguardian.com/uk/rss'
-d = get_rss_feed(guardian_feed)
-
-# Headlines
-headlines = []
-for i in d['entries']:
-    headlines.append(i['summary'])
-
-# Combine headlines and descriptions into one string
-summaries = []
-for i in d['entries']:
-    temp = i['title'] + " " + i['summary']
-    summaries.append(temp)
-
-def clean_rss_feed(text):
-    """
-    Function to remove a handful of known html tags (p,
-    a, li, ul, em, strong, span and a 'continue reading'
-    phrase at the end of each feed
-    :param text: A list of RSS feed strings
-    :type text: list of strings
-    :return cleaned_text: A cleaned list of RSS feed strings
-    :rtype cleaned_text: list of strings
-    """
-    # Remove HTML tags
-    tags_removed = [re.sub("</?(a|p|li|ul|em|strong|span|time|br)[^>]*>", " ", i) for i in text]
-    # Remove continue reading phrase
-    cleaned_text = [re.sub("Continue reading...", "", i) for i in tags_removed]
-    return cleaned_text
-
-headlines = clean_rss_feed(headlines)
-feeds_no_html = clean_rss_feed(summaries)
-
-def remove_non_ascii(text):
-    """
-    Function to remove non-ascii characters
-    :param text: A list of strings which may contain non-ascii characters
-    :type text: list of strings
-    :return rtext: A list of strings which won't contain non-ascii characters
-    :rtype rtext: list of strings
-    """
-    text = [i.encode('ascii','ignore') for i in text]
-    rtext = [i.decode("utf-8") for i in text]
-    return rtext
-
-headlines = remove_non_ascii(headlines)
-feeds_no_html = remove_non_ascii(feeds_no_html)
-
-def save_to_txt(my_list, name_of_file):
-    """
-    Function to save a list to a text file
-    :param my_list: List to save to file
-    :type my_list: list
-    :param name_of_file: Name of file
-    :type name_of_file: str
-    """
-    with open(name_of_file, 'a') as f:
-        for item in my_list:
-            f.write("%s\n" % item)
-
-save_to_txt(headlines, 'guardian_headlines_rss.txt')
-save_to_txt(feeds_no_html, 'guardian_rss.txt')
+collect.collect_rss_feeds('http://www.theguardian.com/uk/rss')
 
 """
 TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
@@ -157,10 +83,6 @@ word_tokens = [remove_stopwords(i) for i in word_tokens]
 # Create TaggedDocument required as input for Doc2vec and run model
 documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(word_tokens)]
 model = Doc2Vec(documents, vector_size=10, window=2, min_count=2, workers=4)
-
-# Can see individual vectors
-print(model.docvecs[1])
-
 doc_vectors = np.array(model.docvecs.vectors_docs)
 
 """
@@ -185,6 +107,9 @@ tsne_plot_data = pd.DataFrame({'headlines': headlines,
                                'nearest_distance': nearest_dist,
                                'x':tsne_on_docvecs[:,0],
                                'y':tsne_on_docvecs[:,1]})
+
+# Save as CSV
+tsne_plot_data.to_csv("TSNE_output.csv", encoding='utf-8')
 
 # Plot t-SNE output
 sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
