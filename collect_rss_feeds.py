@@ -24,27 +24,27 @@ def collect_rss_feeds(url):
     :param: URL of RSS feed
     :return: Append headlines and summaries to two text files
     """
-    d = get_rss_feed(url)
+    d = _get_rss_feed(url)
 
     # Headlines
     headlines = []
     for i in d['entries']:
         headlines.append(i['summary'])
-    headlines = clean_rss_feed(headlines)
-    headlines = remove_non_ascii(headlines)
-    save_to_txt(headlines, 'guardian_headlines_rss.txt')
+    headlines = _clean_rss_feed(headlines)
+    headlines = _remove_non_ascii(headlines)
+    _save_to_txt(headlines, 'guardian_headlines_rss.txt')
 
     # Summaries - combines headlines and rest of text
     summaries = []
     for i in d['entries']:
         temp = i['title'] + " " + i['summary']
         summaries.append(temp)
-    summaries = clean_rss_feed(summaries)
-    summaries = remove_non_ascii(summaries)
-    save_to_txt(summaries, 'guardian_rss.txt')
+    summaries = _clean_rss_feed(summaries)
+    summaries = _remove_non_ascii(summaries)
+    _save_to_txt(summaries, 'guardian_rss.txt')
 
 
-def get_rss_feed(url):
+def _get_rss_feed(url):
     """
     Function to get RSS feed from a chosen news service
     :param url: URL of RSS news feed
@@ -56,7 +56,7 @@ def get_rss_feed(url):
     return d
 
 
-def clean_rss_feed(text):
+def _clean_rss_feed(text):
     """
     Function to remove a handful of known html tags (p,
     a, li, ul, em, strong, span and a 'continue reading'
@@ -73,7 +73,7 @@ def clean_rss_feed(text):
     return cleaned_text
 
 
-def remove_non_ascii(text):
+def _remove_non_ascii(text):
     """
     Function to remove non-ascii characters
     :param text: A list of strings which may contain non-ascii characters
@@ -86,7 +86,7 @@ def remove_non_ascii(text):
     return rtext
 
 
-def save_to_txt(my_list, name_of_file):
+def _save_to_txt(my_list, name_of_file):
     """
     Function to save a list to a text file
     :param my_list: List to save to file
