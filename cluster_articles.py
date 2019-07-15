@@ -20,12 +20,12 @@ Requirements
 
 # Import packages
 import collect_rss_feeds as collect
+from sklearn.datasets import fetch_20newsgroups
+import re
 
 from string import punctuation
-
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-#from gensim.test.utils import common_texts
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 import numpy as np
 
@@ -40,6 +40,28 @@ GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
 """
 
 collect.collect_rss_feeds('http://www.theguardian.com/uk/rss')
+
+"""
+GET 20 NEWSGROUPS DATASET AS RSS FEEDS DON'T CONTAIN ENOUGH DATA
+"""
+
+def get_clean_20_newsgroups(categories=None):
+    """
+    Function to get the 20 newsgroups dataset
+    Can pass optional argument categories as a list of categories
+    Cleaning simply replaces \n (new paragraph) with space
+    :param categories: List of categories to get from 20 newsgroups
+    :type categories: list of strings
+    :return newsgroups_data: The training set for the 20 newsgroups dataset
+    :rtype newsgroups_data: list of strings
+    """
+    newsgroups_train = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes'),
+                                          categories=categories)
+    newsgroups_data = newsgroups_train.data
+    newsgroups_data = [i.replace('\n', ' ') for i in newsgroups_data]
+    return newsgroups_data
+
+newsgroups = get_clean_20_newsgroups(categories=['sci.space'])
 
 """
 TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
@@ -64,7 +86,7 @@ def remove_punct_lower_case(text):
     cleaned_text = [i.lower() for i in text_no_punct]
     return cleaned_text
 
-word_tokens = [word_tokenize(sentence) for sentence in feeds]
+word_tokens = [word_tokenize(sentence) for sentence in newsgroups]
 
 def remove_stopwords(my_string):
     """
@@ -80,10 +102,25 @@ def remove_stopwords(my_string):
 
 word_tokens = [remove_stopwords(i) for i in word_tokens]
 
-# Create TaggedDocument required as input for Doc2vec and run model
-documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(word_tokens)]
-model = Doc2Vec(documents, vector_size=10, window=2, min_count=2, workers=4)
-doc_vectors = np.array(model.docvecs.vectors_docs)
+def run_doc2vec_model(words):
+    """
+    Function to run the doc2vec model from a lists of words (tokens).
+    Output is a
+    :param words: Lists of words or tokens
+    :type words: list of list of words
+    :return doc_vectors: Document vectors, a 10xn shaped array,
+    where n is the number of documents
+    :rtype doc_vectors: numpy.ndarray
+    """
+    # Create TaggedDocument required as input for Doc2vec
+    documents = [TaggedDocument(doc, [i]) for i, doc in enumerate(words)]
+    # Run model
+    model = Doc2Vec(documents, vector_size=10, window=2, min_count=2, workers=4)
+    # Output vectors as a numpy array
+    doc_vectors = np.array(model.docvecs.vectors_docs)
+    return doc_vectors
+
+doc_vectors = run_doc2vec_model(word_tokens)
 
 """
 DIMENSION REDUCTION USING T-SNE
