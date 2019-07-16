@@ -14,7 +14,7 @@ The steps in the process are:
 
 ## How do I use this project?
 
-The following packages are required:
+The following Python packages are required:
 - feedparser
 - re
 - string
