@@ -21,7 +21,6 @@ Requirements
 # Import packages
 import collect_rss_feeds as collect
 from sklearn.datasets import fetch_20newsgroups
-import re
 
 from string import punctuation
 from nltk.tokenize import word_tokenize
@@ -126,30 +125,40 @@ doc_vectors = run_doc2vec_model(word_tokens)
 DIMENSION REDUCTION USING T-SNE
 """
 
-tsne_on_docvecs = TSNE(n_components=2).fit_transform(doc_vectors)
+def tsne_plot_and_csv(document_vectors, articles, csv_output):
+    """
+    Function to reduce dimensions of document vectors to two
+    dimensions (for plotting). Function then plots output
+    and outputs CSV including details of nearest neighbour
+    :param document_vectors: Document vectors from doc2vec output
+    :type document_vectors: numpy.array
+    :param articles: List of articles or headlines summarising articles
+    :type articles: list of strings
+    :param csv_output: Name of file for output to CSV
+    :type csv_output: str
+    """
+    # Run t-SNE
+    tsne_on_docvecs = TSNE(n_components=2).fit_transform(document_vectors)
+    # Find nearest neighbour headline
+    tree = KDTree(tsne_on_docvecs)
+    nearest_dist, nearest_ind = tree.query(tsne_on_docvecs, k=2)  # k=2 nearest neighbors where k1 = identity
+    nearest_dist = nearest_dist[:, 1].tolist()
+    nearest_ind = nearest_ind[:, 1].tolist()
+    nearest_articles = []
+    for i in nearest_ind:
+        nearest_articles.append(articles[i])
+    # Summarise t-SNE output
+    tsne_plot_data = pd.DataFrame({'articles': articles,
+                                   'nearest_articles': nearest_articles,
+                                   'nearest_distance': nearest_dist,
+                                   'x':tsne_on_docvecs[:,0],
+                                   'y':tsne_on_docvecs[:,1]})
+    # Save as CSV
+    tsne_plot_data.to_csv(csv_output, encoding='utf-8')
+    # Plot t-SNE output
+    sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
-# Find nearest neighbour headline
-tree = KDTree(tsne_on_docvecs)
-nearest_dist, nearest_ind = tree.query(tsne_on_docvecs, k=2)  # k=2 nearest neighbors where k1 = identity
-nearest_dist = nearest_dist[:, 1].tolist()
-nearest_ind = nearest_ind[:, 1].tolist()
-
-nearest_headlines = []
-for i in nearest_ind:
-    nearest_headlines.append(headlines[i])
-
-# Summarise t-SNE output
-tsne_plot_data = pd.DataFrame({'headlines': headlines,
-                               'nearest_headlines': nearest_headlines,
-                               'nearest_distance': nearest_dist,
-                               'x':tsne_on_docvecs[:,0],
-                               'y':tsne_on_docvecs[:,1]})
-
-# Save as CSV
-tsne_plot_data.to_csv("TSNE_output.csv", encoding='utf-8')
-
-# Plot t-SNE output
-sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
+tsne_plot_and_csv(doc_vectors, newsgroups, "TSNE_output.csv")
 
 """
 CLUSTER THE ARTICLES USING K-MEANS
