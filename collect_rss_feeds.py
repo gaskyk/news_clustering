@@ -44,6 +44,18 @@ def collect_rss_feeds(url):
     _save_to_txt(summaries, 'guardian_rss.txt')
 
 
+def get_collected_rss_feeds():
+    """
+    Function to import collected RSS feeds from the Guardian
+    :return rss_feeds: A list of RSS feeds
+    :rtype rss_feeds: list of strings
+    """
+    # Read feeds and headlines from text file
+    with open('guardian_rss.txt', 'r') as f:
+        rss_feeds = f.readlines()
+    return rss_feeds
+
+
 def _get_rss_feed(url):
     """
     Function to get RSS feed from a chosen news service
