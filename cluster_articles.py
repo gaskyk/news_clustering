@@ -39,6 +39,7 @@ GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
 """
 
 collect.collect_rss_feeds('http://www.theguardian.com/uk/rss')
+feeds = collect.get_collected_rss_feeds()
 
 """
 GET 20 NEWSGROUPS DATASET AS RSS FEEDS DON'T CONTAIN ENOUGH DATA
@@ -66,12 +67,6 @@ newsgroups = get_clean_20_newsgroups(categories=['sci.space'])
 TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
 """
 
-# Read feeds and headlines from text file
-with open('guardian_rss.txt', 'r') as f:
-    feeds = f.readlines()
-with open('guardian_headlines_rss.txt', 'r') as f:
-    headlines = f.readlines()
-
 def remove_punct_lower_case(text):
     """
     Function to remove punctuation and convert text to lower case
@@ -85,7 +80,7 @@ def remove_punct_lower_case(text):
     cleaned_text = [i.lower() for i in text_no_punct]
     return cleaned_text
 
-word_tokens = [word_tokenize(sentence) for sentence in newsgroups]
+word_tokens = [word_tokenize(sentence) for sentence in feeds]
 
 def remove_stopwords(my_string):
     """
@@ -125,7 +120,7 @@ doc_vectors = run_doc2vec_model(word_tokens)
 DIMENSION REDUCTION USING T-SNE
 """
 
-def tsne_plot_and_csv(document_vectors, articles, csv_output):
+def tsne_plot_and_csv(document_vectors, articles, csv_output=None):
     """
     Function to reduce dimensions of document vectors to two
     dimensions (for plotting). Function then plots output
@@ -158,25 +153,35 @@ def tsne_plot_and_csv(document_vectors, articles, csv_output):
     # Plot t-SNE output
     sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
-tsne_plot_and_csv(doc_vectors, newsgroups, "TSNE_output.csv")
+tsne_plot_and_csv(doc_vectors, feeds)
 
 """
 CLUSTER THE ARTICLES USING K-MEANS
 """
 
-# Run Kmeans clustering with different cluster sizes
-sum_of_squared_distances = []
-for i in range(1,16):
-    km_model = KMeans(n_clusters=i, init='k-means++', max_iter=100, n_init=1)
-    km_model.fit(doc_vectors)
-    sum_of_squared_distances.append(km_model.inertia_)
+def create_scree_plot(document_vectors, number_clusters):
+    """
+    Function to run k-means clustering and show scree / elbow plot for
+    selecting suitable number of clusters
+    :param document_vectors: Document vectors from doc2vec algorithm
+    :type document_vectors: np.array
+    :param number_clusters: Maximum number of clusters for scree plot
+    :type number_clusters: int
+    """
+    # Run Kmeans clustering with different cluster sizes
+    sum_of_squared_distances = []
+    for i in range(1,number_clusters):
+        km_model = KMeans(n_clusters=i, init='k-means++', max_iter=100, n_init=1)
+        km_model.fit(document_vectors)
+        sum_of_squared_distances.append(km_model.inertia_)
+    # Create elbow plot to decide optimal number of clusters
+    elbow_plot_input = pd.DataFrame(
+        {'clusters': list(range(1,number_clusters)),
+         'sum_of_squared_distances': sum_of_squared_distances
+        })
+    sns.lineplot(x="clusters", y="sum_of_squared_distances", data=elbow_plot_input)
 
-# Create elbow plot to decide optimal number of clusters
-elbow_plot_input = pd.DataFrame(
-    {'clusters': list(range(1,16)),
-     'sum_of_squared_distances': sum_of_squared_distances
-    })
-sns.lineplot(x="clusters", y="sum_of_squared_distances", data=elbow_plot_input)
+create_scree_plot(doc_vectors, 20)
 
 # Kmeans labels
 labels = km_model.labels_.tolist()
