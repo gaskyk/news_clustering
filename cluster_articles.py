@@ -20,7 +20,6 @@ Requirements
 
 # Import packages
 import collect_rss_feeds as collect
-from sklearn.datasets import fetch_20newsgroups
 
 from string import punctuation
 from nltk.tokenize import word_tokenize
@@ -40,34 +39,29 @@ GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
 
 collect.collect_rss_feeds('http://www.theguardian.com/uk/rss')
 feeds = collect.get_collected_rss_feeds()
+newsgroups = collect.get_clean_20_newsgroups(categories=['sci.space'])
 
-"""
-GET 20 NEWSGROUPS DATASET AS RSS FEEDS DON'T CONTAIN ENOUGH DATA
-"""
 
-def get_clean_20_newsgroups(categories=None):
+def run_doc2vec_tsne(articles):
     """
-    Function to get the 20 newsgroups dataset
-    Can pass optional argument categories as a list of categories
-    Cleaning simply replaces \n (new paragraph) with space
-    :param categories: List of categories to get from 20 newsgroups
-    :type categories: list of strings
-    :return newsgroups_data: The training set for the 20 newsgroups dataset
-    :rtype newsgroups_data: list of strings
+    Function to pull together all functions below ie.
+    - Remove punctuation and convert to lower case
+    - Tokenise sentences
+    - Remove stop words
+    - Run doc2vec algorithm to get a vector per article
+    - Run t-SNE algorithm to reduce dimension of vectors and plot
+    :param articles:
+    :return:
     """
-    newsgroups_train = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes'),
-                                          categories=categories)
-    newsgroups_data = newsgroups_train.data
-    newsgroups_data = [i.replace('\n', ' ') for i in newsgroups_data]
-    return newsgroups_data
+    articles = _remove_punct_lower_case(articles)
+    word_tokens = [word_tokenize(sentence) for sentence in articles]
+    word_tokens = [_remove_stopwords(i) for i in word_tokens]
+    doc_vectors = _run_doc2vec_model(word_tokens)
+    _tsne_plot_and_csv(doc_vectors, feeds)
+    return doc_vectors
 
-newsgroups = get_clean_20_newsgroups(categories=['sci.space'])
 
-"""
-TOKENISE SENTENCES THEN USE DOC2VEC FOR NUMERICAL REPRESENTATION OF ARTICLES
-"""
-
-def remove_punct_lower_case(text):
+def _remove_punct_lower_case(text):
     """
     Function to remove punctuation and convert text to lower case
     in a list of strings
@@ -80,9 +74,8 @@ def remove_punct_lower_case(text):
     cleaned_text = [i.lower() for i in text_no_punct]
     return cleaned_text
 
-word_tokens = [word_tokenize(sentence) for sentence in feeds]
 
-def remove_stopwords(my_string):
+def _remove_stopwords(my_string):
     """
     Function to remove stop words from a string
     :param text: A sentence
@@ -94,9 +87,8 @@ def remove_stopwords(my_string):
     sentence_no_stopwords = [w for w in my_string if not w in stop_words]
     return sentence_no_stopwords
 
-word_tokens = [remove_stopwords(i) for i in word_tokens]
 
-def run_doc2vec_model(words):
+def _run_doc2vec_model(words):
     """
     Function to run the doc2vec model from a lists of words (tokens).
     Output is a
@@ -114,13 +106,8 @@ def run_doc2vec_model(words):
     doc_vectors = np.array(model.docvecs.vectors_docs)
     return doc_vectors
 
-doc_vectors = run_doc2vec_model(word_tokens)
 
-"""
-DIMENSION REDUCTION USING T-SNE
-"""
-
-def tsne_plot_and_csv(document_vectors, articles, csv_output=None):
+def _tsne_plot_and_csv(document_vectors, articles, csv_output=None):
     """
     Function to reduce dimensions of document vectors to two
     dimensions (for plotting). Function then plots output
@@ -153,13 +140,12 @@ def tsne_plot_and_csv(document_vectors, articles, csv_output=None):
     # Plot t-SNE output
     sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
-tsne_plot_and_csv(doc_vectors, feeds)
 
 """
 CLUSTER THE ARTICLES USING K-MEANS
 """
 
-def create_scree_plot(document_vectors, number_clusters):
+def _create_scree_plot(document_vectors, number_clusters):
     """
     Function to run k-means clustering and show scree / elbow plot for
     selecting suitable number of clusters
@@ -181,17 +167,5 @@ def create_scree_plot(document_vectors, number_clusters):
         })
     sns.lineplot(x="clusters", y="sum_of_squared_distances", data=elbow_plot_input)
 
-create_scree_plot(doc_vectors, 20)
-
-# Kmeans labels
-labels = km_model.labels_.tolist()
-
-# Merge cluster labels and headlines to pandas dataframe
-clusters_headlines = pd.DataFrame(
-    {'cluster_labels': labels,
-     'headlines': headlines
-    })
-
-# Save as CSV
-clusters_headlines.to_csv("clusters_headlines.csv", encoding='utf-8')
+_create_scree_plot(doc_vectors, 20)
 
