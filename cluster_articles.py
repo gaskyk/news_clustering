@@ -19,8 +19,6 @@ Requirements
 """
 
 # Import packages
-import collect_rss_feeds as collect
-
 from string import punctuation
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -33,16 +31,8 @@ from sklearn.cluster import KMeans
 import pandas as pd
 import seaborn as sns
 
-"""
-GET RSS FEED, CLEAN TEXT THEN SAVE TO TXT FILE
-"""
 
-collect.collect_rss_feeds('http://www.theguardian.com/uk/rss')
-feeds = collect.get_collected_rss_feeds()
-newsgroups = collect.get_clean_20_newsgroups(categories=['sci.space'])
-
-
-def run_doc2vec_tsne(articles):
+def run_doc2vec(orig_articles):
     """
     Function to pull together all functions below ie.
     - Remove punctuation and convert to lower case
@@ -50,15 +40,16 @@ def run_doc2vec_tsne(articles):
     - Remove stop words
     - Run doc2vec algorithm to get a vector per article
     - Run t-SNE algorithm to reduce dimension of vectors and plot
-    :param articles:
-    :return:
+    :param orig_articles: A set of articles eg. RSS feeds or 20 newsgroups data
+    :type orig_articles: list of strings
+    :return doc_vectors: Document vectors of articles
+    :rtype doc_vectors: numpy.ndarray
     """
-    articles = _remove_punct_lower_case(articles)
+    articles = _remove_punct_lower_case(orig_articles)
     word_tokens = [word_tokenize(sentence) for sentence in articles]
     word_tokens = [_remove_stopwords(i) for i in word_tokens]
-    doc_vectors = _run_doc2vec_model(word_tokens)
-    _tsne_plot_and_csv(doc_vectors, feeds)
-    return doc_vectors
+    doc2_vectors = _run_doc2vec_model(word_tokens)
+    return doc2_vectors
 
 
 def _remove_punct_lower_case(text):
@@ -78,8 +69,8 @@ def _remove_punct_lower_case(text):
 def _remove_stopwords(my_string):
     """
     Function to remove stop words from a string
-    :param text: A sentence
-    :type text: string
+    :param my_string: A sentence
+    :type my_string: string
     :return sentence_no_stopwords: A sentence containing no stop words
     :rtype sentence_no_stopwords: string
     """
@@ -103,11 +94,11 @@ def _run_doc2vec_model(words):
     # Run model
     model = Doc2Vec(documents, vector_size=10, window=2, min_count=2, workers=4)
     # Output vectors as a numpy array
-    doc_vectors = np.array(model.docvecs.vectors_docs)
-    return doc_vectors
+    document_vectors = np.array(model.docvecs.vectors_docs)
+    return document_vectors
 
 
-def _tsne_plot_and_csv(document_vectors, articles, csv_output=None):
+def tsne_plot_and_csv(document_vectors, articles, csv_output=False):
     """
     Function to reduce dimensions of document vectors to two
     dimensions (for plotting). Function then plots output
@@ -133,19 +124,16 @@ def _tsne_plot_and_csv(document_vectors, articles, csv_output=None):
     tsne_plot_data = pd.DataFrame({'articles': articles,
                                    'nearest_articles': nearest_articles,
                                    'nearest_distance': nearest_dist,
-                                   'x':tsne_on_docvecs[:,0],
-                                   'y':tsne_on_docvecs[:,1]})
+                                   'x': tsne_on_docvecs[:, 0],
+                                   'y': tsne_on_docvecs[:, 1]})
     # Save as CSV
-    tsne_plot_data.to_csv(csv_output, encoding='utf-8')
+    if csv_output:
+        tsne_plot_data.to_csv('TSNE_output.csv', encoding='utf-8')
     # Plot t-SNE output
     sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
 
-"""
-CLUSTER THE ARTICLES USING K-MEANS
-"""
-
-def _create_scree_plot(document_vectors, number_clusters):
+def create_scree_plot(document_vectors, number_clusters):
     """
     Function to run k-means clustering and show scree / elbow plot for
     selecting suitable number of clusters
@@ -156,16 +144,13 @@ def _create_scree_plot(document_vectors, number_clusters):
     """
     # Run Kmeans clustering with different cluster sizes
     sum_of_squared_distances = []
-    for i in range(1,number_clusters):
+    for i in range(1, number_clusters):
         km_model = KMeans(n_clusters=i, init='k-means++', max_iter=100, n_init=1)
         km_model.fit(document_vectors)
         sum_of_squared_distances.append(km_model.inertia_)
     # Create elbow plot to decide optimal number of clusters
     elbow_plot_input = pd.DataFrame(
-        {'clusters': list(range(1,number_clusters)),
+        {'clusters': list(range(1, number_clusters)),
          'sum_of_squared_distances': sum_of_squared_distances
-        })
+         })
     sns.lineplot(x="clusters", y="sum_of_squared_distances", data=elbow_plot_input)
-
-_create_scree_plot(doc_vectors, 20)
-
