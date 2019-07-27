@@ -1,20 +1,24 @@
 """
-Collect RSS feeds
-=================
+Collect RSS feeds or get 20 newsgroups dataset
+==============================================
 
 - Get RSS feeds
 - Clean feeds
 - Save to text files
 
+Also contains function for collecting 20 newsgroups dataset
+
 Requirements
 :requires: feedparser
 :requires: re
+:requires: sklearn
 
 """
 
 # Import packages
 import feedparser
 import re
+from sklearn.datasets import fetch_20newsgroups
 
 
 def collect_rss_feeds(url):
@@ -109,3 +113,20 @@ def _save_to_txt(my_list, name_of_file):
     with open(name_of_file, 'a') as f:
         for item in my_list:
             f.write("%s\n" % item)
+
+
+def get_clean_20_newsgroups(categories=None):
+    """
+    Function to get the 20 newsgroups dataset
+    Can pass optional argument categories as a list of categories
+    Cleaning simply replaces \n (new paragraph) with space
+    :param categories: List of categories to get from 20 newsgroups
+    :type categories: list of strings
+    :return newsgroups_data: The training set for the 20 newsgroups dataset
+    :rtype newsgroups_data: list of strings
+    """
+    newsgroups_train = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes'),
+                                          categories=categories)
+    newsgroups_data = newsgroups_train.data
+    newsgroups_data = [i.replace('\n', ' ') for i in newsgroups_data]
+    return newsgroups_data
