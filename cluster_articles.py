@@ -2,7 +2,6 @@
 Cluster news articles based on collected data
 =============================================
 
-- Get RSS feeds from the Guardian
 - Use doc2vec to numerically represent the articles
 - Use t-SNE to reduce the dimension of the document vectors and to plot clusters of similar articles
 - Cluster similar articles together based on the doc2vec vectors
