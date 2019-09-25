@@ -127,7 +127,7 @@ def tsne_plot_and_csv(document_vectors, articles, csv_output=False):
                                    'y': tsne_on_docvecs[:, 1]})
     # Save as CSV
     if csv_output:
-        tsne_plot_data.to_csv('TSNE_output.csv', encoding='utf-8')
+        tsne_plot_data.to_csv('TSNE_output.csv', encoding='utf-8', index=False)
     # Plot t-SNE output
     sns.scatterplot(tsne_plot_data["x"], tsne_plot_data["y"]).plot()
 
