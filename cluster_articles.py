@@ -107,7 +107,7 @@ def tsne_plot_and_csv(document_vectors, articles, csv_output=False):
     :param articles: List of articles or headlines summarising articles
     :type articles: list of strings
     :param csv_output: Name of file for output to CSV
-    :type csv_output: str
+    :type csv_output: bool
     """
     # Run t-SNE
     tsne_on_docvecs = TSNE(n_components=2).fit_transform(document_vectors)
